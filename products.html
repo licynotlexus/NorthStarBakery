@@ -101,5 +101,76 @@
   <footer>
     <p>© 2026 North Star Bakery</p>
   </footer>
+<script>
+  // Load saved order on page load
+  document.addEventListener("DOMContentLoaded", () => {
+    const savedOrder = JSON.parse(localStorage.getItem("savedOrder"));
+    const message = document.getElementById("orderMessage");
+
+    if (savedOrder) {
+      message.style.color = "#5a3e2b";
+      message.textContent = `Last saved order: ${savedOrder.item} x${savedOrder.quantity} — Total: $${savedOrder.total}`;
+    }
+  });
+
+  // Calculate total price
+  document.getElementById("calculateBtn").addEventListener("click", () => {
+    const itemSelect = document.getElementById("itemSelect");
+    const quantityInput = document.getElementById("quantityInput");
+    const message = document.getElementById("orderMessage");
+
+    const item = itemSelect.value;
+    const price = itemSelect.selectedOptions[0]?.getAttribute("data-price");
+    const quantity = quantityInput.value;
+
+    // Validation
+    if (!item) {
+      message.textContent = "Please select an item.";
+      message.style.color = "red";
+      return;
+    }
+
+    if (quantity < 1) {
+      message.textContent = "Quantity must be at least 1.";
+      message.style.color = "red";
+      return;
+    }
+
+    const total = (price * quantity).toFixed(2);
+
+    message.style.color = "#5a3e2b";
+    message.textContent = `${item} x${quantity} — Total: $${total}`;
+  });
+
+  // Save order to localStorage
+  document.getElementById("saveOrderBtn").addEventListener("click", () => {
+    const itemSelect = document.getElementById("itemSelect");
+    const quantityInput = document.getElementById("quantityInput");
+    const message = document.getElementById("orderMessage");
+
+    const item = itemSelect.value;
+    const price = itemSelect.selectedOptions[0]?.getAttribute("data-price");
+    const quantity = quantityInput.value;
+
+    if (!item || quantity < 1) {
+      message.textContent = "Please calculate your order before saving.";
+      message.style.color = "red";
+      return;
+    }
+
+    const total = (price * quantity).toFixed(2);
+
+    const orderData = {
+      item,
+      quantity,
+      total
+    };
+
+    localStorage.setItem("savedOrder", JSON.stringify(orderData));
+
+    message.style.color = "#5a3e2b";
+    message.textContent = `Order saved: ${item} x${quantity} — Total: $${total}`;
+  });
+</script>
 </body>
 </html>
