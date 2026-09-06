@@ -70,6 +70,27 @@
       margin-top: 50px;
       font-size: 1rem;
     }
+
+    /* small helper styling for the order controls */
+    .order-panel {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .order-panel select,
+    .order-panel input,
+    .order-panel button {
+      margin: 6px 6px 6px 6px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid #d1a77c;
+      font-size: 1rem;
+    }
+
+    #orderMessage {
+      margin-top: 12px;
+      min-height: 1.2em;
+    }
   </style>
 </head>
 
@@ -96,80 +117,99 @@
     </picture>
 
     <p>Our pastries are baked fresh every morning using local ingredients.</p>
+
+    <!-- Order controls added so the JavaScript has matching elements -->
+    <div class="order-panel" aria-labelledby="orderHeading">
+      <div id="orderHeading" style="display:none">Order panel</div>
+      <label for="itemSelect">Choose item:</label>
+      <select id="itemSelect" aria-label="Choose item">
+        <option value="">-- Select --</option>
+        <option value="Croissant" data-price="2.50">Croissant — $2.50</option>
+        <option value="Sourdough Loaf" data-price="5.00">Sourdough Loaf — $5.00</option>
+        <option value="Cinnamon Roll" data-price="3.00">Cinnamon Roll — $3.00</option>
+      </select>
+
+      <label for="quantityInput" style="margin-left:10px;">Quantity:</label>
+      <input id="quantityInput" type="number" min="1" value="1" style="width:60px;">
+
+      <button id="calculateBtn" type="button" style="margin-left:10px;">Calculate</button>
+      <button id="saveOrderBtn" type="button">Save Order</button>
+
+      <div id="orderMessage" aria-live="polite"></div>
+    </div>
   </main>
 
   <footer>
     <p>© 2026 North Star Bakery</p>
   </footer>
 <script>
-  // Load saved order on page load
+  // Defensive JS: waits for DOMContentLoaded, checks elements exist, parses numbers
   document.addEventListener("DOMContentLoaded", () => {
-    const savedOrder = JSON.parse(localStorage.getItem("savedOrder"));
+    const itemSelect = document.getElementById("itemSelect");
+    const quantityInput = document.getElementById("quantityInput");
+    const calculateBtn = document.getElementById("calculateBtn");
+    const saveOrderBtn = document.getElementById("saveOrderBtn");
     const message = document.getElementById("orderMessage");
 
-    if (savedOrder) {
+    // load saved order if present
+    let savedOrder = null;
+    try {
+      const raw = localStorage.getItem("savedOrder");
+      savedOrder = raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      savedOrder = null;
+    }
+
+    if (message && savedOrder) {
       message.style.color = "#5a3e2b";
       message.textContent = `Last saved order: ${savedOrder.item} x${savedOrder.quantity} — Total: $${savedOrder.total}`;
     }
-  });
 
-  // Calculate total price
-  document.getElementById("calculateBtn").addEventListener("click", () => {
-    const itemSelect = document.getElementById("itemSelect");
-    const quantityInput = document.getElementById("quantityInput");
-    const message = document.getElementById("orderMessage");
+    function calculate() {
+      if (!message) return null;
+      if (!itemSelect || !quantityInput) {
+        message.style.color = "red";
+        message.textContent = "Order controls are missing from the page.";
+        return null;
+      }
 
-    const item = itemSelect.value;
-    const price = itemSelect.selectedOptions[0]?.getAttribute("data-price");
-    const quantity = quantityInput.value;
+      const item = itemSelect.value;
+      const price = parseFloat(itemSelect.selectedOptions[0]?.getAttribute("data-price") || "0");
+      const quantity = parseInt(quantityInput.value, 10) || 0;
 
-    // Validation
-    if (!item) {
-      message.textContent = "Please select an item.";
-      message.style.color = "red";
-      return;
+      if (!item) {
+        message.style.color = "red";
+        message.textContent = "Please select an item.";
+        return null;
+      }
+
+      if (quantity < 1) {
+        message.style.color = "red";
+        message.textContent = "Quantity must be at least 1.";
+        return null;
+      }
+
+      const total = (price * quantity).toFixed(2);
+      message.style.color = "#5a3e2b";
+      message.textContent = `${item} x${quantity} — Total: $${total}`;
+      return { item, quantity, total };
     }
 
-    if (quantity < 1) {
-      message.textContent = "Quantity must be at least 1.";
-      message.style.color = "red";
-      return;
-    }
+    if (calculateBtn) calculateBtn.addEventListener("click", calculate);
 
-    const total = (price * quantity).toFixed(2);
-
-    message.style.color = "#5a3e2b";
-    message.textContent = `${item} x${quantity} — Total: $${total}`;
-  });
-
-  // Save order to localStorage
-  document.getElementById("saveOrderBtn").addEventListener("click", () => {
-    const itemSelect = document.getElementById("itemSelect");
-    const quantityInput = document.getElementById("quantityInput");
-    const message = document.getElementById("orderMessage");
-
-    const item = itemSelect.value;
-    const price = itemSelect.selectedOptions[0]?.getAttribute("data-price");
-    const quantity = quantityInput.value;
-
-    if (!item || quantity < 1) {
-      message.textContent = "Please calculate your order before saving.";
-      message.style.color = "red";
-      return;
-    }
-
-    const total = (price * quantity).toFixed(2);
-
-    const orderData = {
-      item,
-      quantity,
-      total
-    };
-
-    localStorage.setItem("savedOrder", JSON.stringify(orderData));
-
-    message.style.color = "#5a3e2b";
-    message.textContent = `Order saved: ${item} x${quantity} — Total: $${total}`;
+    if (saveOrderBtn) saveOrderBtn.addEventListener("click", () => {
+      const order = calculate();
+      if (!order) return;
+      try {
+        localStorage.setItem("savedOrder", JSON.stringify(order));
+      } catch (e) {
+        // ignore quota errors
+      }
+      if (message) {
+        message.style.color = "#5a3e2b";
+        message.textContent = `Order saved: ${order.item} x${order.quantity} — Total: $${order.total}`;
+      }
+    });
   });
 </script>
 </body>
