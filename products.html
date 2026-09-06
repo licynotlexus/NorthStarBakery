@@ -302,6 +302,10 @@
         <option value="Croissant" data-price="2.50">Croissant — $2.50</option>
         <option value="Sourdough Loaf" data-price="5.00">Sourdough Loaf — $5.00</option>
         <option value="Cinnamon Roll" data-price="3.00">Cinnamon Roll — $3.00</option>
+        <option value="Blueberry Muffin" data-price="2.75">Blueberry Muffin — $2.75</option>
+        <option value="Banana Bread" data-price="4.50">Banana Bread — $4.50</option>
+        <option value="Bagel" data-price="1.75">Bagel — $1.75</option>
+        <option value="Chocolate Chip Cookie" data-price="1.25">Chocolate Chip Cookie — $1.25</option>
       </select>
 
       <label for="quantityInput" style="margin-left:10px;">Quantity:</label>
@@ -326,7 +330,25 @@
   function loadCart() {
     try {
       const raw = localStorage.getItem("bakeryCart");
-      cart = raw ? JSON.parse(raw) : [];
+      const parsed = raw ? JSON.parse(raw) : [];
+      // migrate older entries that may only have item/quantity/total -> add price
+      cart = parsed.map(entry => {
+        // ensure numeric fields
+        const item = entry.item || entry.name || "";
+        const quantity = parseInt(entry.quantity, 10) || 0;
+        let price = null;
+        if (entry.price !== undefined && entry.price !== null) {
+          price = parseFloat(entry.price);
+        } else if (entry.total !== undefined && quantity > 0) {
+          price = parseFloat(entry.total) / quantity;
+        } else {
+          // try to obtain from select options on the page
+          const opt = document.querySelector(`#itemSelect option[value="${CSS.escape(item)}"]`);
+          if (opt) price = parseFloat(opt.getAttribute('data-price')) || 0;
+        }
+        if (isNaN(price) || price === null) price = 0;
+        return { item, price: parseFloat(price.toFixed(2)), quantity };
+      });
     } catch (e) {
       cart = [];
     }
@@ -348,7 +370,8 @@
     const cartTotalDisplay = document.getElementById("cartTotalDisplay");
 
     if (cartBtn) {
-      cartBtn.textContent = `🛒 Cart (${cart.length})`;
+      const itemCount = cart.reduce((sum, o) => sum + (o.quantity || 0), 0);
+      cartBtn.textContent = `🛒 Cart (${itemCount})`;
     }
 
     if (!cartItemsList) return;
@@ -359,18 +382,21 @@
       return;
     }
 
-    cartItemsList.innerHTML = cart.map((order, index) => `
+    cartItemsList.innerHTML = cart.map((order, index) => {
+      const total = (parseFloat(order.price) * (parseInt(order.quantity, 10) || 0)).toFixed(2);
+      return `
       <li>
         <div class="cart-item-info">
           <strong>${order.item}</strong><br>
-          Quantity: ${order.quantity} — Total: $${order.total}
+          Quantity: ${order.quantity} — Total: $${total}
         </div>
         <button class="cart-item-remove" type="button" onclick="removeFromCart(${index})" aria-label="Remove ${order.item} from cart">Remove</button>
       </li>
-    `).join("");
+    `;
+    }).join("");
 
     // Calculate and display cart total
-    const grandTotal = cart.reduce((sum, order) => sum + parseFloat(order.total), 0).toFixed(2);
+    const grandTotal = cart.reduce((sum, order) => sum + (parseFloat(order.price) * (parseInt(order.quantity, 10) || 0)), 0).toFixed(2);
     if (cartTotalDisplay) {
       cartTotalDisplay.textContent = `Cart Total: $${grandTotal}`;
     }
@@ -457,20 +483,29 @@
       const total = (price * quantity).toFixed(2);
       message.style.color = "#5a3e2b";
       message.textContent = `${item} x${quantity} — Total: $${total}`;
-      return { item, quantity, total };
+      return { item, quantity, price };
     }
 
     if (calculateBtn) calculateBtn.addEventListener("click", calculate);
 
     if (addToCartBtn) addToCartBtn.addEventListener("click", () => {
-      const order = calculate();
-      if (!order) return;
-      cart.push(order);
+      const result = calculate();
+      if (!result) return;
+      const { item, quantity, price } = result;
+
+      // merge with existing item if same name and price
+      const existing = cart.find(o => o.item === item && parseFloat(o.price) === parseFloat(price));
+      if (existing) {
+        existing.quantity = (parseInt(existing.quantity, 10) || 0) + quantity;
+      } else {
+        cart.push({ item, price: parseFloat(price.toFixed ? price.toFixed(2) : price), quantity });
+      }
+
       saveCart();
       updateCartDisplay();
       if (message) {
         message.style.color = "#5a3e2b";
-        message.textContent = `✓ ${order.item} x${order.quantity} added to cart!`;
+        message.textContent = `✓ ${item} x${quantity} added to cart!`;
       }
       // Reset form
       if (itemSelect) itemSelect.value = "";
