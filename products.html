@@ -131,6 +131,16 @@
       display: block;
     }
 
+    /* hide the modal by default; show it only when the overlay is open */
+    .cart-modal {
+      display: none;
+    }
+
+    /* when the overlay is opened, show the modal (overlay and modal are siblings) */
+    .cart-modal-overlay.open + .cart-modal {
+      display: block;
+    }
+
     .cart-modal {
       position: fixed;
       top: 50%;
