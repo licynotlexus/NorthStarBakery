@@ -18,6 +18,26 @@
       padding: 25px;
       text-align: center;
       border-bottom: 4px solid #d1a77c; /* toasted caramel */
+      position: relative;
+    }
+
+    .cart-button {
+      position: absolute;
+      top: 15px;
+      right: 25px;
+      background-color: #d1a77c;
+      color: #5a3e2b;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 1rem;
+      transition: background-color 0.3s ease;
+    }
+
+    .cart-button:hover {
+      background-color: #b07a4a;
     }
 
     nav ul {
@@ -91,11 +111,139 @@
       margin-top: 12px;
       min-height: 1.2em;
     }
+
+    /* Cart Modal Styles */
+    .cart-modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 999;
+    }
+
+    .cart-modal-overlay.open {
+      display: block;
+    }
+
+    .cart-modal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: #fff4e6;
+      border: 3px solid #d1a77c;
+      border-radius: 12px;
+      padding: 30px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      z-index: 1000;
+      box-shadow: 0 0 30px rgba(120, 80, 50, 0.4);
+    }
+
+    .cart-modal h2 {
+      margin-top: 0;
+      text-align: center;
+    }
+
+    .cart-items-list {
+      list-style: none;
+      padding: 0;
+      margin: 20px 0;
+    }
+
+    .cart-items-list li {
+      background-color: #fbeee0;
+      padding: 12px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-left: 4px solid #d1a77c;
+    }
+
+    .cart-item-info {
+      text-align: left;
+      flex: 1;
+    }
+
+    .cart-item-remove {
+      background-color: #b07a4a;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      margin-left: 10px;
+    }
+
+    .cart-item-remove:hover {
+      background-color: #8b5e3c;
+    }
+
+    .cart-empty {
+      text-align: center;
+      color: #8b5e3c;
+      font-style: italic;
+      padding: 20px;
+    }
+
+    .cart-total {
+      text-align: right;
+      font-weight: bold;
+      font-size: 1.2rem;
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 2px solid #d1a77c;
+      color: #8b5e3c;
+    }
+
+    .cart-modal-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    .cart-modal-buttons button {
+      padding: 10px 20px;
+      border-radius: 6px;
+      border: 1px solid #d1a77c;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 1rem;
+      transition: background-color 0.3s ease;
+    }
+
+    .clear-cart-btn {
+      background-color: #b07a4a;
+      color: white;
+    }
+
+    .clear-cart-btn:hover {
+      background-color: #8b5e3c;
+    }
+
+    .close-cart-btn {
+      background-color: #d1a77c;
+      color: #5a3e2b;
+    }
+
+    .close-cart-btn:hover {
+      background-color: #b07a4a;
+    }
   </style>
 </head>
 
 <body>
   <header>
+    <button id="cartBtn" class="cart-button" aria-label="Open shopping cart">🛒 Cart (0)</button>
     <h1>Bakery Products</h1>
     <nav>
       <ul>
@@ -106,6 +254,20 @@
       </ul>
     </nav>
   </header>
+
+  <!-- Cart Modal -->
+  <div id="cartModalOverlay" class="cart-modal-overlay"></div>
+  <div id="cartModal" class="cart-modal" role="dialog" aria-labelledby="cartModalTitle" aria-hidden="true">
+    <h2 id="cartModalTitle">Your Cart</h2>
+    <ul id="cartItemsList" class="cart-items-list">
+      <li class="cart-empty">Your cart is empty</li>
+    </ul>
+    <div id="cartTotalDisplay" class="cart-total"></div>
+    <div class="cart-modal-buttons">
+      <button id="clearCartBtn" class="clear-cart-btn" type="button">Clear Cart</button>
+      <button id="closeCartBtn" class="close-cart-btn" type="button">Close</button>
+    </div>
+  </div>
 
   <main>
     <h2>Fresh Pastries and Bread</h2>
@@ -133,7 +295,7 @@
       <input id="quantityInput" type="number" min="1" value="1" style="width:60px;">
 
       <button id="calculateBtn" type="button" style="margin-left:10px;">Calculate</button>
-      <button id="saveOrderBtn" type="button">Save Order</button>
+      <button id="addToCartBtn" type="button">Add to Cart</button>
 
       <div id="orderMessage" aria-live="polite"></div>
     </div>
@@ -142,27 +304,117 @@
   <footer>
     <p>© 2026 North Star Bakery</p>
   </footer>
+
 <script>
+  // Cart management
+  let cart = [];
+
+  // Load cart from localStorage on page load
+  function loadCart() {
+    try {
+      const raw = localStorage.getItem("bakeryCart");
+      cart = raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      cart = [];
+    }
+  }
+
+  // Save cart to localStorage
+  function saveCart() {
+    try {
+      localStorage.setItem("bakeryCart", JSON.stringify(cart));
+    } catch (e) {
+      // ignore quota errors
+    }
+  }
+
+  // Update cart button and modal display
+  function updateCartDisplay() {
+    const cartBtn = document.getElementById("cartBtn");
+    const cartItemsList = document.getElementById("cartItemsList");
+    const cartTotalDisplay = document.getElementById("cartTotalDisplay");
+
+    if (cartBtn) {
+      cartBtn.textContent = `🛒 Cart (${cart.length})`;
+    }
+
+    if (!cartItemsList) return;
+
+    if (cart.length === 0) {
+      cartItemsList.innerHTML = '<li class="cart-empty">Your cart is empty</li>';
+      if (cartTotalDisplay) cartTotalDisplay.textContent = "";
+      return;
+    }
+
+    cartItemsList.innerHTML = cart.map((order, index) => `
+      <li>
+        <div class="cart-item-info">
+          <strong>${order.item}</strong><br>
+          Quantity: ${order.quantity} — Total: $${order.total}
+        </div>
+        <button class="cart-item-remove" type="button" onclick="removeFromCart(${index})" aria-label="Remove ${order.item} from cart">Remove</button>
+      </li>
+    `).join("");
+
+    // Calculate and display cart total
+    const grandTotal = cart.reduce((sum, order) => sum + parseFloat(order.total), 0).toFixed(2);
+    if (cartTotalDisplay) {
+      cartTotalDisplay.textContent = `Cart Total: $${grandTotal}`;
+    }
+  }
+
+  // Remove item from cart
+  function removeFromCart(index) {
+    cart.splice(index, 1);
+    saveCart();
+    updateCartDisplay();
+  }
+
+  // Open/close cart modal
+  function openCartModal() {
+    const overlay = document.getElementById("cartModalOverlay");
+    const modal = document.getElementById("cartModal");
+    if (overlay) overlay.classList.add("open");
+    if (modal) modal.setAttribute("aria-hidden", "false");
+  }
+
+  function closeCartModal() {
+    const overlay = document.getElementById("cartModalOverlay");
+    const modal = document.getElementById("cartModal");
+    if (overlay) overlay.classList.remove("open");
+    if (modal) modal.setAttribute("aria-hidden", "true");
+  }
+
+  // Clear entire cart
+  function clearCart() {
+    if (confirm("Are you sure you want to clear your entire cart?")) {
+      cart = [];
+      saveCart();
+      updateCartDisplay();
+    }
+  }
+
   // Defensive JS: waits for DOMContentLoaded, checks elements exist, parses numbers
   document.addEventListener("DOMContentLoaded", () => {
+    loadCart();
+    updateCartDisplay();
+
     const itemSelect = document.getElementById("itemSelect");
     const quantityInput = document.getElementById("quantityInput");
     const calculateBtn = document.getElementById("calculateBtn");
-    const saveOrderBtn = document.getElementById("saveOrderBtn");
+    const addToCartBtn = document.getElementById("addToCartBtn");
+    const cartBtn = document.getElementById("cartBtn");
+    const cartModalOverlay = document.getElementById("cartModalOverlay");
+    const closeCartBtn = document.getElementById("closeCartBtn");
+    const clearCartBtn = document.getElementById("clearCartBtn");
     const message = document.getElementById("orderMessage");
 
-    // load saved order if present
-    let savedOrder = null;
-    try {
-      const raw = localStorage.getItem("savedOrder");
-      savedOrder = raw ? JSON.parse(raw) : null;
-    } catch (e) {
-      savedOrder = null;
-    }
-
-    if (message && savedOrder) {
-      message.style.color = "#5a3e2b";
-      message.textContent = `Last saved order: ${savedOrder.item} x${savedOrder.quantity} — Total: $${savedOrder.total}`;
+    // Cart button handlers
+    if (cartBtn) cartBtn.addEventListener("click", openCartModal);
+    if (closeCartBtn) closeCartBtn.addEventListener("click", closeCartModal);
+    if (clearCartBtn) clearCartBtn.addEventListener("click", clearCart);
+    if (cartModalOverlay) {
+      cartModalOverlay.addEventListener("click", closeCartModal);
     }
 
     function calculate() {
@@ -197,19 +449,27 @@
 
     if (calculateBtn) calculateBtn.addEventListener("click", calculate);
 
-    if (saveOrderBtn) saveOrderBtn.addEventListener("click", () => {
+    if (addToCartBtn) addToCartBtn.addEventListener("click", () => {
       const order = calculate();
       if (!order) return;
-      try {
-        localStorage.setItem("savedOrder", JSON.stringify(order));
-      } catch (e) {
-        // ignore quota errors
-      }
+      cart.push(order);
+      saveCart();
+      updateCartDisplay();
       if (message) {
         message.style.color = "#5a3e2b";
-        message.textContent = `Order saved: ${order.item} x${order.quantity} — Total: $${order.total}`;
+        message.textContent = `✓ ${order.item} x${order.quantity} added to cart!`;
       }
+      // Reset form
+      if (itemSelect) itemSelect.value = "";
+      if (quantityInput) quantityInput.value = "1";
     });
+  });
+
+  // Close modal when pressing Escape
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      closeCartModal();
+    }
   });
 </script>
 </body>
