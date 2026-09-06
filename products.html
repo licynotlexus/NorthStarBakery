@@ -19,12 +19,13 @@
       text-align: center;
       border-bottom: 4px solid #d1a77c; /* toasted caramel */
       position: relative;
+      overflow: visible;
     }
 
     .cart-button {
       position: absolute;
-      top: 15px;
-      right: 25px;
+      top: 20px;
+      right: 30px;
       background-color: #d1a77c;
       color: #5a3e2b;
       border: none;
@@ -34,6 +35,8 @@
       font-weight: bold;
       font-size: 1rem;
       transition: background-color 0.3s ease;
+      z-index: 10;
+      white-space: nowrap;
     }
 
     .cart-button:hover {
